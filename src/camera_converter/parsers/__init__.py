@@ -2,4 +2,4 @@
 
 from .sensing import SensingParser
 
-__all__ = ['SensingParser']
+__all__ = ["SensingParser"]

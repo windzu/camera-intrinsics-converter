@@ -104,12 +104,14 @@ convert-intrinsics sensing INPUT OUTPUT \
 ## 常用命令
 
 ### 基础转换
+
 ```bash
 convert-intrinsics sensing input.txt output.yaml \
   --width 1920 --height 1080 --camera-name CAM_FRONT
 ```
 
 ### 带时间戳
+
 ```bash
 convert-intrinsics sensing input.txt output.yaml \
   --width 1920 --height 1080 --camera-name CAM_FRONT \
@@ -117,6 +119,7 @@ convert-intrinsics sensing input.txt output.yaml \
 ```
 
 ### 高精度转换（更多采样点）
+
 ```bash
 convert-intrinsics sensing input.txt output.yaml \
   --width 1920 --height 1080 --camera-name CAM_FRONT \
@@ -125,6 +128,7 @@ convert-intrinsics sensing input.txt output.yaml \
 ```
 
 ### 查看详细信息
+
 ```bash
 convert-intrinsics sensing input.txt output.yaml \
   --width 1920 --height 1080 --camera-name CAM_FRONT \
@@ -134,19 +138,25 @@ convert-intrinsics sensing input.txt output.yaml \
 ## 故障排除
 
 ### 问题：找不到 convert-intrinsics 命令
+
 **解决**：确保已激活虚拟环境
+
 ```bash
 source venv/bin/activate
 ```
 
 ### 问题：fitting_error_rms 太大
+
 **解决**：增加采样点数
+
 ```bash
 convert-intrinsics ... --num-samples 50000
 ```
 
 ### 问题：转换太慢
+
 **解决**：减少采样点数
+
 ```bash
 convert-intrinsics ... --num-samples 5000
 ```

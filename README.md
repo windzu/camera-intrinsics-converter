@@ -16,11 +16,13 @@
 ### 畸变模型差异
 
 **Sensing 使用的 Rational Polynomial 模型**（8 参数）:
+
 ```
 x_distorted = x * (1 + k1*r² + k2*r⁴ + k3*r⁶) / (1 + k4*r² + k5*r⁴ + k6*r⁶) + [切向畸变]
 ```
 
 **ROS 标准的 RadTan/plumb_bob 模型**（5 参数）:
+
 ```
 x_distorted = x * (1 + k1*r² + k2*r⁴ + k3*r⁶) + [切向畸变]
 ```
@@ -30,6 +32,7 @@ x_distorted = x * (1 + k1*r² + k2*r⁴ + k3*r⁶) + [切向畸变]
 直接丢弃 K4, K5, K6 会导致**显著的精度损失**，特别是当这些系数较大时。
 
 **本工具的解决方案：**
+
 1. 在图像有效区域采样大量点（默认 10000 个）
 2. 使用原始 Rational 模型计算这些点的畸变坐标
 3. 用这些点对重新拟合 RadTan 5 参数模型
@@ -180,6 +183,7 @@ convert-intrinsics sensing input.txt output.yaml \
 ```
 
 输出示例：
+
 ```
 Parsing sensing format file: data/sensing.txt
   Serial Number: H100F1A-H09150733
@@ -280,6 +284,7 @@ camera-intrinsics-converter/
 3. 在 `cli.py` 中注册新格式
 
 示例：
+
 ```python
 # src/camera_converter/parsers/new_format.py
 class NewFormatParser:
@@ -294,26 +299,30 @@ class NewFormatParser:
 ## 常见问题
 
 ### Q: 拟合需要多长时间？
+
 A: 默认 10000 个采样点通常在 1-3 秒内完成。可以通过 `--num-samples` 调整。
 
 ### Q: 如何判断转换质量？
+
 A: 使用 `--verbose` 查看 `fitting_error_rms`。对于 1920x1080 图像，< 0.001 的误差通常意味着像素级误差 < 1-2 像素。
 
 ### Q: 原始 K4, K5, K6 很小，还需要拟合吗？
+
 A: 工具会自动检测。如果系数 < 0.01，可以考虑直接复制，但拟合方法总是更安全。
 
 ### Q: 支持鱼眼相机吗？
+
 A: 当前版本支持针孔相机。鱼眼相机使用不同的畸变模型（equidistant），需要单独实现。
 
 ## 技术细节
 
 ### 拟合算法
 
-1. **采样策略**: 
+1. **采样策略**:
    - 70% 均匀网格采样（覆盖整个图像）
    - 30% 随机径向采样（加强不同半径的覆盖）
 
-2. **优化方法**: 
+2. **优化方法**:
    - Levenberg-Marquardt 算法
    - 最小化归一化坐标系下的重投影误差
 
@@ -330,6 +339,7 @@ MIT License
 欢迎提交 Issue 和 Pull Request！
 
 如果需要添加新的相机格式支持，请：
+
 1. 提供样例文件
 2. 说明格式规范
 3. 创建 Issue 讨论
@@ -342,6 +352,7 @@ MIT License
 ## 更新日志
 
 ### v0.1.0 (2025-12-09)
+
 - ✨ 初始版本
 - ✅ 支持 Sensing 格式
 - ✅ Rational to RadTan 拟合转换
