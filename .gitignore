@@ -33,6 +33,5 @@ ENV/
 *~
 
 # Output files
-output/
 *.yaml
 !examples/*.yaml
