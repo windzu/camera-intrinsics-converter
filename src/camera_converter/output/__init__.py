@@ -2,4 +2,4 @@
 
 from .yaml_generator import YAMLGenerator
 
-__all__ = ['YAMLGenerator']
+__all__ = ["YAMLGenerator"]
