@@ -32,27 +32,36 @@ class YAMLGenerator:
             image_height: Image height in pixels
             camera_name: Camera name/identifier
             intrinsics: Dict with fx, fy, cx, cy
-            distortion_coefficients: Dict with k1, k2, p1, p2, k3
+            distortion_coefficients: Dict with distortion parameters (k1, k2, p1, p2, k3 for plumb_bob, or k1-k6, p1, p2 for rational)
             camera_model: Camera model type (pinhole or fisheye)
-            distortion_model: Distortion model type
+            distortion_model: Distortion model type (plumb_bob or rational)
             meta: Optional metadata dictionary
 
         Returns:
             YAML formatted string
         """
+        # Build distortion coefficients based on model type
+        dc_dict = {
+            "k1": float(distortion_coefficients["k1"]),
+            "k2": float(distortion_coefficients["k2"]),
+            "p1": float(distortion_coefficients["p1"]),
+            "p2": float(distortion_coefficients["p2"]),
+            "k3": float(distortion_coefficients["k3"]),
+        }
+
+        # Add rational model parameters if present
+        if distortion_model == "rational":
+            dc_dict["k4"] = float(distortion_coefficients.get("k4", 0.0))
+            dc_dict["k5"] = float(distortion_coefficients.get("k5", 0.0))
+            dc_dict["k6"] = float(distortion_coefficients.get("k6", 0.0))
+
         data = {
             "image_width": image_width,
             "image_height": image_height,
             "camera_name": camera_name,
             "camera_model": camera_model,
             "distortion_model": distortion_model,
-            "distortion_coefficients": {
-                "k1": float(distortion_coefficients["k1"]),
-                "k2": float(distortion_coefficients["k2"]),
-                "p1": float(distortion_coefficients["p1"]),
-                "p2": float(distortion_coefficients["p2"]),
-                "k3": float(distortion_coefficients["k3"]),
-            },
+            "distortion_coefficients": dc_dict,
             "intrinsics": {
                 "fx": float(intrinsics["fx"]),
                 "fy": float(intrinsics["fy"]),
@@ -98,6 +107,12 @@ class YAMLGenerator:
         lines.append(f"  p1: {dc['p1']}  # t1")
         lines.append(f"  p2: {dc['p2']}  # t2")
         lines.append(f"  k3: {dc['k3']}  # 若无就写 0（例如fisheye就是0）")
+
+        # Add rational model parameters if present
+        if "k4" in dc:
+            lines.append(f"  k4: {dc['k4']}  # rational model only")
+            lines.append(f"  k5: {dc['k5']}  # rational model only")
+            lines.append(f"  k6: {dc['k6']}  # rational model only")
         lines.append("")
 
         # Intrinsics

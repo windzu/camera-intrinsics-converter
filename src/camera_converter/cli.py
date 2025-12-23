@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Optional
 
 from camera_converter.parsers import SensingParser
-from camera_converter.converters import DistortionConverter
 from camera_converter.output import YAMLGenerator
 
 
@@ -71,13 +70,6 @@ Examples:
     )
 
     parser.add_argument(
-        "--num-samples",
-        type=int,
-        default=10000,
-        help="Number of sample points for model fitting (default: 10000)",
-    )
-
-    parser.add_argument(
         "--verbose", action="store_true", help="Print detailed conversion information"
     )
 
@@ -93,7 +85,6 @@ Examples:
             camera_name=args.camera_name,
             camera_model=args.camera_model,
             calibrated_at=args.calibrated_at,
-            num_samples=args.num_samples,
             verbose=args.verbose,
         )
         print(f"✓ Successfully converted to {args.output}")
@@ -112,7 +103,6 @@ def convert_intrinsics(
     camera_name: str,
     camera_model: str = "pinhole",
     calibrated_at: Optional[str] = None,
-    num_samples: int = 10000,
     verbose: bool = False,
 ):
     """
@@ -127,7 +117,6 @@ def convert_intrinsics(
         camera_name: Camera identifier
         camera_model: Camera model type
         calibrated_at: Optional calibration timestamp
-        num_samples: Number of samples for fitting
         verbose: Whether to print detailed information
     """
     # Parse input file
@@ -147,64 +136,30 @@ def convert_intrinsics(
         )
         print(f"  Has rational model: {data.get('has_rational_model', False)}")
 
-    # Convert distortion model
-    converter = DistortionConverter(image_width, image_height)
+    # Determine distortion model type and prepare coefficients
+    has_rational = data.get("has_rational_model", False)
 
-    # Check if rational model coefficients are significant
-    if data.get("has_rational_model"):
-        k4 = data.get("k4", 0.0) or 0.0
-        k5 = data.get("k5", 0.0) or 0.0
-        k6 = data.get("k6", 0.0) or 0.0
-
-        is_significant, message = converter.check_rational_model_significance(
-            k4, k5, k6
-        )
-
-        if verbose:
-            print(f"\nRational model analysis:")
-            print(f"  {message}")
-            print(f"  K4={k4:.6f}, K5={k5:.6f}, K6={k6:.6f}")
-
-        # Perform fitting conversion
-        if verbose:
-            print(f"\nFitting RadTan model with {num_samples} sample points...")
-
-        fitted_result = converter.rational_to_radtan_fit(
-            fx=data["fx"],
-            fy=data["fy"],
-            cx=data["cx"],
-            cy=data["cy"],
-            k1=data["k1"],
-            k2=data["k2"],
-            p1=data["p1"],
-            p2=data["p2"],
-            k3=data["k3"],
-            k4=k4,
-            k5=k5,
-            k6=k6,
-            num_samples=num_samples,
-        )
-
+    if has_rational:
+        # Use rational model with all 8 parameters
+        distortion_model = "rational"
         distortion_coeffs = {
-            "k1": fitted_result["k1"],
-            "k2": fitted_result["k2"],
-            "p1": fitted_result["p1"],
-            "p2": fitted_result["p2"],
-            "k3": fitted_result["k3"],
+            "k1": data["k1"],
+            "k2": data["k2"],
+            "p1": data["p1"],
+            "p2": data["p2"],
+            "k3": data["k3"],
+            "k4": data.get("k4") or 0.0,
+            "k5": data.get("k5") or 0.0,
+            "k6": data.get("k6") or 0.0,
         }
-
         if verbose:
+            print(f"\nDetected rational model, using 'rational' distortion model")
             print(
-                f"  Fitting RMS error: {fitted_result['fitting_error_rms']:.6f} (normalized coordinates)"
+                f"  K4={distortion_coeffs['k4']:.6f}, K5={distortion_coeffs['k5']:.6f}, K6={distortion_coeffs['k6']:.6f}"
             )
-            print(f"  Fitted coefficients:")
-            print(f"    k1={distortion_coeffs['k1']:.10f}")
-            print(f"    k2={distortion_coeffs['k2']:.10f}")
-            print(f"    p1={distortion_coeffs['p1']:.10f}")
-            print(f"    p2={distortion_coeffs['p2']:.10f}")
-            print(f"    k3={distortion_coeffs['k3']:.10f}")
     else:
-        # No rational model, use original coefficients directly
+        # Use standard RadTan (plumb_bob) model
+        distortion_model = "plumb_bob"
         distortion_coeffs = {
             "k1": data["k1"],
             "k2": data["k2"],
@@ -213,7 +168,7 @@ def convert_intrinsics(
             "k3": data["k3"],
         }
         if verbose:
-            print("\nNo rational model detected, using original coefficients directly.")
+            print(f"\nNo rational model detected, using 'plumb_bob' distortion model")
 
     # Prepare metadata
     meta = {}
@@ -228,23 +183,7 @@ def convert_intrinsics(
     if data.get("rms") is not None:
         meta["original_rms"] = float(data["rms"])
 
-    # If rational model was used, save original coefficients
-    if data.get("has_rational_model"):
-        meta["original_rational_model"] = {
-            "k1": float(data["k1"]),
-            "k2": float(data["k2"]),
-            "p1": float(data["p1"]),
-            "p2": float(data["p2"]),
-            "k3": float(data["k3"]),
-            "k4": float(data.get("k4", 0.0) or 0.0),
-            "k5": float(data.get("k5", 0.0) or 0.0),
-            "k6": float(data.get("k6", 0.0) or 0.0),
-        }
-        meta["conversion_method"] = "fitted_from_rational_model"
-        meta["fitting_error_rms"] = fitted_result["fitting_error_rms"]
-    else:
-        meta["conversion_method"] = "direct_copy"
-
+    meta["conversion_method"] = "format_only" if has_rational else "direct_copy"
     meta["converted_at"] = datetime.now().isoformat() + "Z"
 
     # Generate YAML output
@@ -264,7 +203,7 @@ def convert_intrinsics(
         },
         distortion_coefficients=distortion_coeffs,
         camera_model=camera_model,
-        distortion_model="plumb_bob",
+        distortion_model=distortion_model,
         meta=meta,
     )
 
